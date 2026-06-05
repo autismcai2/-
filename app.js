@@ -744,6 +744,33 @@ async function uploadPatternCover(file) {
   return data.publicUrl;
 }
 
+function renderPatternCover(cover, options = {}) {
+  if (cover) {
+    const attrs = options.previewable
+      ? ` role="button" tabindex="0" data-preview-image="${cover}" aria-label="查看封面大图"`
+      : "";
+    return `<img class="pattern-image${options.previewable ? " previewable-image" : ""}" src="${cover}" alt="图纸封面"${attrs}>`;
+  }
+  return `<div class="pattern-placeholder"></div>`;
+}
+
+function openImagePreview(src) {
+  const modal = $("#modal");
+  if (!modal || !src) return;
+  modal.innerHTML = `
+    <div class="modal-body image-preview-shell">
+      <div class="dialog-topbar">
+        <h2 class="dialog-title">封面大图</h2>
+        <button class="close-chip" type="button" data-close-modal aria-label="关闭">脳</button>
+      </div>
+      <div class="image-preview-frame">
+        <img class="image-preview" src="${src}" alt="图纸封面大图">
+      </div>
+    </div>
+  `;
+  modal.showModal();
+}
+
 function setPatternStatus(pattern, nextStatus) {
   if (!pattern) return;
   if (nextStatus === "done-deducted") {
@@ -763,7 +790,7 @@ function patternEditorBody(pattern) {
       <button class="close-chip" type="button" data-close-modal aria-label="关闭">×</button>
     </div>
     <div class="grid pattern-detail-grid">
-    <div class="pattern-art pattern-art-large">${renderPatternCover(pattern.cover)}</div>
+    <div class="pattern-art pattern-art-large pattern-art-detail">${renderPatternCover(pattern.cover, { previewable: true })}</div>
     <form id="patternEditorForm" data-pattern-id="${pattern.id}" class="form-grid">
       <label class="field">图纸名称 <small>必填</small><input name="name" required value="${pattern.name}"></label>
       <label class="field">状态 <small>必填</small><select name="status">
@@ -952,6 +979,9 @@ document.addEventListener("click", (event) => {
     const pattern = state.patterns.find((p) => p.id === target.dataset.viewPattern);
     $("#modal").innerHTML = `<div class="modal-body modal-body-scroll">${patternEditorBody(pattern)}</div>`;
     $("#modal").showModal();
+  }
+  if (target.dataset.previewImage) {
+    openImagePreview(target.dataset.previewImage);
   }
   if (target.dataset.addPatternRow !== undefined) {
     const editor = $("#patternEditorForm .pattern-item-editor");

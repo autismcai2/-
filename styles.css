@@ -348,8 +348,10 @@ tr:hover .hover-action, .cell-actions:hover .hover-action { opacity: 1; transfor
 .pattern-card { padding: 14px; border: 1px solid var(--line); border-radius: 20px; background: #fffefa; }
 .pattern-art {
   height: 134px;
+  aspect-ratio: 1 / 1;
   border-radius: 16px;
   margin-bottom: 12px;
+  overflow: hidden;
   background-color: #f7efe4;
   background-image:
     linear-gradient(rgba(112, 93, 74, .08) 1px, transparent 1px),
@@ -362,8 +364,14 @@ tr:hover .hover-action, .cell-actions:hover .hover-action { opacity: 1; transfor
 .pattern-image {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center;
   border-radius: 16px;
+  display: block;
+  background: #fffdfa;
+}
+.previewable-image {
+  cursor: zoom-in;
 }
 .pattern-placeholder {
   width: 104px;
@@ -445,6 +453,29 @@ tr:hover .hover-action, .cell-actions:hover .hover-action { opacity: 1; transfor
   overflow-y: auto;
   overflow-x: hidden;
   padding-right: 16px;
+}
+.image-preview-shell {
+  display: grid;
+  gap: 18px;
+}
+.image-preview-frame {
+  display: grid;
+  place-items: center;
+  min-height: min(70vh, 720px);
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: #fbf8f2;
+}
+.image-preview {
+  max-width: 100%;
+  max-height: calc(70vh - 48px);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 16px;
+  display: block;
+  box-shadow: 0 12px 28px rgba(72, 62, 47, 0.1);
 }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
 .toast {
