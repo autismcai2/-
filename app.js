@@ -302,6 +302,12 @@ function render() {
   renderer();
 }
 
+window.addEventListener("error", () => {
+  const view = $("#view");
+  if (!view) return;
+  view.innerHTML = `<section class="login-panel panel"><p class="eyebrow">启动失败</p><h1>页面初始化失败</h1><p>优先检查 Supabase 配置里的 Project URL 是否填写成了项目根地址，而不是 <code>/rest/v1</code> 接口地址。</p></section>`;
+});
+
 function pageHead(title, desc, action = "") {
   return `<div class="page-head"><div><p class="eyebrow">MARD 221 · ${routeNames[route()] || "拼豆库存"}</p><h1>${title}</h1><p>${desc}</p></div><div class="toolbar">${action}</div></div>`;
 }
