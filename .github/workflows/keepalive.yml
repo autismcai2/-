@@ -1,0 +1,44 @@
+name: Keepalive
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  ping-services:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      RENDER_SITE_URL: ${{ secrets.RENDER_SITE_URL }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+      SUPABASE_STATE_KEY: ${{ secrets.SUPABASE_STATE_KEY }}
+    steps:
+      - name: Validate secrets
+        run: |
+          test -n "$RENDER_SITE_URL"
+          test -n "$SUPABASE_URL"
+          test -n "$SUPABASE_PUBLISHABLE_KEY"
+
+      - name: Ping Render site
+        run: |
+          curl --fail --silent --show-error \
+            --location \
+            --max-time 30 \
+            --user-agent "bead-inventory-keepalive/1.0" \
+            "$RENDER_SITE_URL"
+
+      - name: Ping Supabase app_state
+        run: |
+          STATE_KEY="${SUPABASE_STATE_KEY:-default}"
+          curl --fail --silent --show-error \
+            --get \
+            --location \
+            --max-time 30 \
+            --user-agent "bead-inventory-keepalive/1.0" \
+            --data-urlencode "select=state_key" \
+            --data-urlencode "state_key=eq.${STATE_KEY}" \
+            "$SUPABASE_URL/rest/v1/app_state" \
+            -H "apikey: $SUPABASE_PUBLISHABLE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_PUBLISHABLE_KEY"
