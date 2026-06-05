@@ -291,6 +291,18 @@ function setActiveRoute() {
   $$(".nav a").forEach((link) => link.classList.toggle("active", link.dataset.route === route()));
 }
 
+function closeSidebar() {
+  $(".sidebar")?.classList.remove("open");
+  document.body.classList.remove("sidebar-open");
+}
+
+function toggleSidebar() {
+  const sidebar = $(".sidebar");
+  if (!sidebar) return;
+  const isOpen = sidebar.classList.toggle("open");
+  document.body.classList.toggle("sidebar-open", isOpen);
+}
+
 function render() {
   try {
     if (!stateLoaded && canUseSupabase()) {
@@ -889,12 +901,25 @@ function deductPattern(pattern) {
 }
 
 document.addEventListener("click", (event) => {
+  if (window.innerWidth <= 980 && !event.target.closest(".sidebar") && !event.target.closest("#menuToggle")) {
+    closeSidebar();
+  }
   const target = event.target.closest("button, a");
   if (!target) return;
-  if (target.id === "menuToggle") $(".sidebar").classList.toggle("open");
+  if (target.id === "menuToggle") {
+    toggleSidebar();
+    return;
+  }
+  if (target.id === "sidebarBackdrop") {
+    closeSidebar();
+    return;
+  }
   if (target.id === "logoutButton") {
     setAuthenticated(false);
     render();
+  }
+  if (target.closest(".nav a") || target.dataset.route) {
+    closeSidebar();
   }
   if (target.dataset.closeModal !== undefined) $("#modal").close();
   if (target.dataset.seriesJump) {
@@ -1094,5 +1119,8 @@ $("#globalSearch").addEventListener("input", (event) => {
 });
 
 window.addEventListener("hashchange", render);
+window.addEventListener("resize", () => {
+  if (window.innerWidth > 980) closeSidebar();
+});
 render();
 hydrateState();

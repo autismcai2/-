@@ -47,6 +47,12 @@ button { cursor: pointer; }
   border-right: 1px solid var(--line);
   backdrop-filter: blur(18px);
 }
+.sidebar-backdrop {
+  display: none;
+  border: 0;
+  padding: 0;
+  background: rgba(47, 52, 47, 0.18);
+}
 .brand {
   display: flex;
   gap: 12px;
@@ -500,6 +506,12 @@ tr:hover .hover-action, .cell-actions:hover .hover-action { opacity: 1; transfor
   .app { grid-template-columns: 1fr; }
   .sidebar { position: fixed; z-index: 10; transform: translateX(-100%); transition: .2s ease; width: 260px; }
   .sidebar.open { transform: translateX(0); }
+  .sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 9;
+  }
+  body.sidebar-open .sidebar-backdrop { display: block; }
   .topbar { grid-template-columns: auto minmax(0, 1fr); }
   #librarySelect, #quickAddPattern { display: none; }
   .stats, .two-col, .three-col, .form-grid, .series-table-grid { grid-template-columns: 1fr; }
