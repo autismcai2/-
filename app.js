@@ -4,7 +4,7 @@ const DEFAULT_THRESHOLD = 200;
 const SUPABASE_CONFIG = window.SUPABASE_CONFIG || {};
 const REMOTE_STATE_KEY = SUPABASE_CONFIG.stateKey || "default";
 const STORAGE_BUCKET = SUPABASE_CONFIG.storageBucket || "pattern-covers";
-let supabase = null;
+let supabaseClient = null;
 let stateLoaded = false;
 let saveTimer = null;
 let startupIssue = "";
@@ -138,12 +138,12 @@ function canUseSupabase() {
 
 function getSupabaseClient() {
   if (!canUseSupabase()) return null;
-  if (!supabase) {
-    supabase = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey, {
+  if (!supabaseClient) {
+    supabaseClient = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey, {
       auth: { persistSession: false, autoRefreshToken: false }
     });
   }
-  return supabase;
+  return supabaseClient;
 }
 
 async function loadRemoteState() {
