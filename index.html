@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bead Inventory Manager 拼豆库存</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <a class="brand" href="#/">
+          <span class="bead-logo" aria-hidden="true"></span>
+          <span>
+            <strong>拼豆库存</strong>
+            <small>Bead Inventory</small>
+          </span>
+        </a>
+        <nav class="nav" aria-label="主导航">
+          <a href="#/" data-route="/">首页</a>
+          <a href="#/colors" data-route="/colors">色库管理</a>
+          <a href="#/inventory-alerts" data-route="/inventory-alerts">库存预警</a>
+          <a href="#/restocks" data-route="/restocks">补货记录</a>
+          <a href="#/patterns" data-route="/patterns">图纸中心</a>
+          <a href="#/settings" data-route="/settings">系统设置</a>
+        </nav>
+        <div class="sidebar-note">
+          <span>当前色库</span>
+          <strong id="activeLibrary">MARD 221</strong>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <button class="icon-button" id="menuToggle" type="button" aria-label="切换菜单">☰</button>
+          <label class="search">
+            <span aria-hidden="true">⌕</span>
+            <input id="globalSearch" type="search" placeholder="搜索色号、图纸或备注..." />
+          </label>
+          <select id="librarySelect" aria-label="当前色库">
+            <option>MARD 221</option>
+          </select>
+          <button class="ghost" id="logoutButton" type="button" style="display:none">退出登录</button>
+          <button class="primary" id="quickAddPattern" type="button">新增图纸 +</button>
+        </header>
+
+        <section id="view" class="view" aria-live="polite"></section>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status"></div>
+    <dialog class="modal" id="modal"></dialog>
+    <script src="./app.js"></script>
+  </body>
+</html>
