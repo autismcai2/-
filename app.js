@@ -1,6 +1,12 @@
 const STORAGE_KEY = "bead-inventory-mvp-v1";
 const AUTH_KEY = "bead-inventory-auth-v1";
 const DEFAULT_THRESHOLD = 200;
+const SUPABASE_CONFIG = window.SUPABASE_CONFIG || {};
+const REMOTE_STATE_KEY = SUPABASE_CONFIG.stateKey || "default";
+const STORAGE_BUCKET = SUPABASE_CONFIG.storageBucket || "pattern-covers";
+let supabase = null;
+let stateLoaded = false;
+let saveTimer = null;
 const canonicalColorHex = {
   A1: "#FAF4C8", A2: "#FFFFD5", A3: "#FEFF8B", A4: "#FBED56", A5: "#F4D738", A6: "#FEAC4C", A7: "#FE8B4C", A8: "#FFDA45",
   A9: "#FF995B", A10: "#F77C31", A11: "#FFDD99", A12: "#FE9F72", A13: "#FFC365", A14: "#FD543D", A15: "#FFF365", A16: "#FFFF9F",
@@ -110,6 +116,81 @@ function loadState() {
 
 function save() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  queueRemoteSave();
+}
+
+function canUseSupabase() {
+  return Boolean(SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabase?.createClient);
+}
+
+function getSupabaseClient() {
+  if (!canUseSupabase()) return null;
+  if (!supabase) {
+    supabase = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey, {
+      auth: { persistSession: false, autoRefreshToken: false }
+    });
+  }
+  return supabase;
+}
+
+async function loadRemoteState() {
+  const client = getSupabaseClient();
+  if (!client) return null;
+  const { data, error } = await client
+    .from("app_state")
+    .select("payload")
+    .eq("state_key", REMOTE_STATE_KEY)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data?.payload || !Object.keys(data.payload).length) return null;
+  const remote = data.payload;
+  if (!Array.isArray(remote.colors) || remote.colors.length !== 221) return null;
+  remote.colors = normalizeColors(remote.colors);
+  remote.settings = {
+    library: remote.settings?.library || "MARD 221",
+    defaultThreshold: Number(remote.settings?.defaultThreshold ?? DEFAULT_THRESHOLD),
+    allowNegativeStock: Boolean(remote.settings?.allowNegativeStock),
+    adminPassword: remote.settings?.adminPassword || "admin123"
+  };
+  return remote;
+}
+
+async function saveRemoteState() {
+  const client = getSupabaseClient();
+  if (!client || !stateLoaded) return;
+  const payload = {
+    ...state,
+    updatedAt: new Date().toISOString()
+  };
+  const { error } = await client.from("app_state").upsert({
+    state_key: REMOTE_STATE_KEY,
+    payload
+  });
+  if (error) throw error;
+}
+
+function queueRemoteSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    saveRemoteState().catch(() => toast("云端保存失败"));
+  }, 250);
+}
+
+async function hydrateState() {
+  try {
+    const remote = await loadRemoteState();
+    if (remote) {
+      state = remote;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } else if (canUseSupabase()) {
+      await saveRemoteState();
+    }
+  } catch {
+    toast("云端数据加载失败，已回退到本地数据");
+  } finally {
+    stateLoaded = true;
+    render();
+  }
 }
 
 function isAuthenticated() {
@@ -194,6 +275,11 @@ function setActiveRoute() {
 }
 
 function render() {
+  if (!stateLoaded && canUseSupabase()) {
+    document.body.classList.add("locked");
+    $("#view").innerHTML = `<section class="login-panel panel"><p class="eyebrow">云端同步</p><h1>正在加载数据</h1><p>请稍候，正在连接 Supabase。</p></section>`;
+    return;
+  }
   document.body.classList.toggle("locked", !isAuthenticated());
   $("#quickAddPattern").style.display = isAuthenticated() ? "" : "none";
   $("#librarySelect").style.display = isAuthenticated() ? "" : "none";
@@ -599,14 +685,26 @@ function renderPatternCover(cover) {
   return `<div class="pattern-placeholder"></div>`;
 }
 
-function fileToDataUrl(file) {
-  if (!file || !file.size) return Promise.resolve("");
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(new Error("图片读取失败"));
-    reader.readAsDataURL(file);
+async function uploadPatternCover(file) {
+  if (!file || !file.size) return "";
+  const client = getSupabaseClient();
+  if (!client) {
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(new Error("图片读取失败"));
+      reader.readAsDataURL(file);
+    });
+  }
+  const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+  const path = `${REMOTE_STATE_KEY}/${crypto.randomUUID()}.${ext}`;
+  const { error } = await client.storage.from(STORAGE_BUCKET).upload(path, file, {
+    cacheControl: "3600",
+    upsert: false
   });
+  if (error) throw error;
+  const { data } = client.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+  return data.publicUrl;
 }
 
 function setPatternStatus(pattern, nextStatus) {
@@ -765,7 +863,14 @@ document.addEventListener("click", (event) => {
   if (target.dataset.restockCode || target.dataset.newRestock !== undefined) {
     const code = target.dataset.restockCode || "";
     openModal("新增补货", restockForm({ code, quantity: "", date: today(), note: "" }), (fd) => {
-      const item = { id: crypto.randomUUID(), code: String(fd.get("code")).toUpperCase(), quantity: Number(fd.get("quantity")), date: fd.get("date"), note: fd.get("note") };
+      const item = {
+        id: crypto.randomUUID(),
+        code: String(fd.get("code")).toUpperCase(),
+        quantity: Number(fd.get("quantity")),
+        date: fd.get("date"),
+        note: fd.get("note"),
+        ...createBatchMeta()
+      };
       try { applyRestock(item); state.restocks.push(item); save(); render(); toast("补货已加入库存"); } catch (err) { toast(err.message); }
     });
   }
@@ -794,7 +899,7 @@ document.addEventListener("click", (event) => {
           const items = parseBatch(fd.get("items"));
           const status = fd.get("status");
           const coverFile = $("#modal input[name='cover']")?.files?.[0];
-          const cover = await fileToDataUrl(coverFile);
+          const cover = await uploadPatternCover(coverFile);
           const pattern = { id: crypto.randomUUID(), name: fd.get("name"), status, stockDeducted: false, note: fd.get("note"), cover, items };
           state.patterns.push(pattern);
           if (status === "done-deducted") deductPattern(pattern); else { save(); render(); toast("图纸已新增"); }
@@ -886,7 +991,7 @@ document.addEventListener("submit", async (event) => {
       pattern.note = form.querySelector('input[name="note"]').value.trim();
       pattern.items = collectPatternItems(form);
       const coverFile = form.querySelector('input[name="cover"]')?.files?.[0];
-      const cover = await fileToDataUrl(coverFile);
+      const cover = await uploadPatternCover(coverFile);
       if (cover) pattern.cover = cover;
       $("#modal").close();
       if (nextStatus === "done-deducted" && pattern.status !== "done-deducted") {
@@ -923,3 +1028,4 @@ $("#globalSearch").addEventListener("input", (event) => {
 
 window.addEventListener("hashchange", render);
 render();
+hydrateState();
