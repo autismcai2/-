@@ -54,6 +54,18 @@ const fmt = (value) => Number(value || 0).toLocaleString("zh-CN");
 const today = () => new Date().toISOString().slice(0, 10);
 let state = loadState();
 
+function ensureView() {
+  let view = $("#view");
+  if (view) return view;
+  const main = $(".main") || document.body;
+  view = document.createElement("section");
+  view.id = "view";
+  view.className = "view";
+  view.setAttribute("aria-live", "polite");
+  main.appendChild(view);
+  return view;
+}
+
 function initialColors() {
   return Object.entries(seriesCounts).flatMap(([series, count]) => {
     return Array.from({ length: count }, (_, index) => {
@@ -283,7 +295,7 @@ function render() {
   try {
     if (!stateLoaded && canUseSupabase()) {
       document.body.classList.add("locked");
-      $("#view").innerHTML = `<section class="login-panel panel"><p class="eyebrow">云端同步</p><h1>正在加载数据</h1><p>请稍候，正在连接 Supabase。</p></section>`;
+      ensureView().innerHTML = `<section class="login-panel panel"><p class="eyebrow">云端同步</p><h1>正在加载数据</h1><p>请稍候，正在连接 Supabase。</p></section>`;
       return;
     }
     document.body.classList.toggle("locked", !isAuthenticated());
@@ -313,8 +325,7 @@ function render() {
 }
 
 function renderStartupFailure() {
-  const view = $("#view");
-  if (!view) return;
+  const view = ensureView();
   view.innerHTML = `<section class="login-panel panel"><p class="eyebrow">启动失败</p><h1>页面初始化失败</h1><p>${startupIssue || "请检查 Supabase 配置、SQL 初始化和浏览器兼容性。"}</p><p>当前要求的 Supabase URL 应该是项目根地址，例如 <code>https://your-project.supabase.co</code>。</p></section>`;
 }
 
@@ -333,7 +344,7 @@ function pageHead(title, desc, action = "") {
 }
 
 function renderLoginGate() {
-  $("#view").innerHTML = `
+  ensureView().innerHTML = `
     <section class="login-panel panel">
       <p class="eyebrow">管理员入口</p>
       <h1>输入管理员密码</h1>
