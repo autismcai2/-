@@ -7,6 +7,7 @@ const STORAGE_BUCKET = SUPABASE_CONFIG.storageBucket || "pattern-covers";
 let supabase = null;
 let stateLoaded = false;
 let saveTimer = null;
+let startupIssue = "";
 const canonicalColorHex = {
   A1: "#FAF4C8", A2: "#FFFFD5", A3: "#FEFF8B", A4: "#FBED56", A5: "#F4D738", A6: "#FEAC4C", A7: "#FE8B4C", A8: "#FFDA45",
   A9: "#FF995B", A10: "#F77C31", A11: "#FFDD99", A12: "#FE9F72", A13: "#FFC365", A14: "#FD543D", A15: "#FFF365", A16: "#FFFF9F",
@@ -172,7 +173,10 @@ async function saveRemoteState() {
 function queueRemoteSave() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
-    saveRemoteState().catch(() => toast("云端保存失败"));
+    saveRemoteState().catch((error) => {
+      startupIssue = `云端保存失败：${error?.message || error}`;
+      toast("云端保存失败");
+    });
   }, 250);
 }
 
@@ -185,7 +189,8 @@ async function hydrateState() {
     } else if (canUseSupabase()) {
       await saveRemoteState();
     }
-  } catch {
+  } catch (error) {
+    startupIssue = `云端数据加载失败：${error?.message || error}`;
     toast("云端数据加载失败，已回退到本地数据");
   } finally {
     stateLoaded = true;
@@ -275,37 +280,52 @@ function setActiveRoute() {
 }
 
 function render() {
-  if (!stateLoaded && canUseSupabase()) {
-    document.body.classList.add("locked");
-    $("#view").innerHTML = `<section class="login-panel panel"><p class="eyebrow">云端同步</p><h1>正在加载数据</h1><p>请稍候，正在连接 Supabase。</p></section>`;
-    return;
+  try {
+    if (!stateLoaded && canUseSupabase()) {
+      document.body.classList.add("locked");
+      $("#view").innerHTML = `<section class="login-panel panel"><p class="eyebrow">云端同步</p><h1>正在加载数据</h1><p>请稍候，正在连接 Supabase。</p></section>`;
+      return;
+    }
+    document.body.classList.toggle("locked", !isAuthenticated());
+    $("#quickAddPattern").style.display = isAuthenticated() ? "" : "none";
+    $("#librarySelect").style.display = isAuthenticated() ? "" : "none";
+    $("#globalSearch").disabled = !isAuthenticated();
+    $("#logoutButton").style.display = isAuthenticated() ? "" : "none";
+    setActiveRoute();
+    if (!isAuthenticated()) {
+      renderLoginGate();
+      return;
+    }
+    const path = route();
+    const renderer = {
+      "/": renderDashboard,
+      "/colors": renderColors,
+      "/inventory-alerts": renderAlerts,
+      "/restocks": renderRestocks,
+      "/patterns": renderPatterns,
+      "/settings": renderSettings
+    }[path] || renderDashboard;
+    renderer();
+  } catch (error) {
+    startupIssue = `页面渲染失败：${error?.message || error}`;
+    renderStartupFailure();
   }
-  document.body.classList.toggle("locked", !isAuthenticated());
-  $("#quickAddPattern").style.display = isAuthenticated() ? "" : "none";
-  $("#librarySelect").style.display = isAuthenticated() ? "" : "none";
-  $("#globalSearch").disabled = !isAuthenticated();
-  $("#logoutButton").style.display = isAuthenticated() ? "" : "none";
-  setActiveRoute();
-  if (!isAuthenticated()) {
-    renderLoginGate();
-    return;
-  }
-  const path = route();
-  const renderer = {
-    "/": renderDashboard,
-    "/colors": renderColors,
-    "/inventory-alerts": renderAlerts,
-    "/restocks": renderRestocks,
-    "/patterns": renderPatterns,
-    "/settings": renderSettings
-  }[path] || renderDashboard;
-  renderer();
 }
 
-window.addEventListener("error", () => {
+function renderStartupFailure() {
   const view = $("#view");
   if (!view) return;
-  view.innerHTML = `<section class="login-panel panel"><p class="eyebrow">启动失败</p><h1>页面初始化失败</h1><p>优先检查 Supabase 配置里的 Project URL 是否填写成了项目根地址，而不是 <code>/rest/v1</code> 接口地址。</p></section>`;
+  view.innerHTML = `<section class="login-panel panel"><p class="eyebrow">启动失败</p><h1>页面初始化失败</h1><p>${startupIssue || "请检查 Supabase 配置、SQL 初始化和浏览器兼容性。"}</p><p>当前要求的 Supabase URL 应该是项目根地址，例如 <code>https://your-project.supabase.co</code>。</p></section>`;
+}
+
+window.addEventListener("error", (event) => {
+  startupIssue = `脚本错误：${event?.message || "未知错误"}`;
+  renderStartupFailure();
+});
+
+window.addEventListener("unhandledrejection", (event) => {
+  startupIssue = `异步错误：${event?.reason?.message || event?.reason || "未知错误"}`;
+  renderStartupFailure();
 });
 
 function pageHead(title, desc, action = "") {
