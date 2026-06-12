@@ -1,6 +1,7 @@
 const STORAGE_KEY = "bead-inventory-mvp-v1";
 const AUTH_KEY = "bead-inventory-auth-v1";
-const DEFAULT_THRESHOLD = 200;
+const DEFAULT_THRESHOLD = 300;
+const INVENTORY_DATA_VERSION = "2026-06-12-xlsx-inventory";
 const SUPABASE_CONFIG = window.SUPABASE_CONFIG || {};
 const REMOTE_STATE_KEY = SUPABASE_CONFIG.stateKey || "default";
 const STORAGE_BUCKET = SUPABASE_CONFIG.storageBucket || "pattern-covers";
@@ -39,6 +40,45 @@ const canonicalColorHex = {
   M11: "#9F7594", M12: "#644749", M13: "#D19066", M14: "#C77362", M15: "#757D78"
 };
 const seriesCounts = { A: 26, B: 32, C: 29, D: 26, E: 24, F: 25, G: 21, H: 23, M: 15 };
+const initialInventory = {
+  A1: [953, 300], A2: [934, 300], A3: [459, 300], A4: [978, 300], A5: [985, 300], A6: [2737, 300],
+  A7: [866, 300], A8: [899, 300], A9: [962, 300], A10: [794, 300], A11: [765, 300], A12: [849, 300],
+  A13: [1000, 300], A14: [980, 300], A15: [1000, 300], A16: [880, 300], A17: [987, 300], A18: [974, 300],
+  A19: [934, 300], A20: [972, 300], A21: [957, 300], A22: [820, 300], A23: [923, 300], A24: [964, 300],
+  A25: [1000, 300], A26: [217, 300], B1: [987, 300], B2: [1000, 300], B3: [909, 300], B4: [952, 300],
+  B5: [692, 300], B6: [1000, 300], B7: [960, 300], B8: [151, 300], B9: [700, 300], B10: [1000, 300],
+  B11: [629, 300], B12: [1000, 300], B13: [1000, 300], B14: [826, 300], B15: [1000, 300], B16: [1000, 300],
+  B17: [867, 300], B18: [1000, 300], B19: [0, 300], B20: [1000, 300], B21: [1000, 300], B22: [960, 300],
+  B23: [892, 300], B24: [958, 300], B25: [1000, 300], B26: [988, 300], B27: [889, 300], B28: [1000, 300],
+  B29: [893, 300], B30: [1000, 300], B31: [1000, 300], B32: [984, 300], C1: [1000, 300], C2: [1000, 300],
+  C3: [1000, 300], C4: [1000, 300], C5: [951, 300], C6: [733, 300], C7: [991, 300], C8: [934, 300],
+  C9: [982, 300], C10: [990, 300], C11: [999, 300], C12: [1000, 300], C13: [914, 300], C14: [1000, 300],
+  C15: [1000, 300], C16: [976, 300], C17: [973, 300], C18: [1000, 300], C19: [997, 300], C20: [994, 300],
+  C21: [837, 300], C22: [1000, 300], C23: [994, 300], C24: [1000, 300], C25: [1000, 300], C26: [1000, 300],
+  C27: [993, 300], C28: [998, 300], C29: [809, 300], D1: [991, 300], D2: [872, 300], D3: [974, 300],
+  D4: [1000, 300], D5: [968, 300], D6: [898, 300], D7: [864, 300], D8: [701, 300], D9: [889, 300],
+  D10: [947, 300], D11: [592, 300], D12: [1000, 300], D13: [1000, 300], D14: [1000, 300], D15: [1000, 300],
+  D16: [818, 300], D17: [953, 300], D18: [973, 300], D19: [1000, 300], D20: [995, 300], D21: [425, 300],
+  D22: [959, 300], D23: [886, 300], D24: [885, 300], D25: [1000, 300], D26: [1000, 300], E1: [930, 300],
+  E2: [1000, 300], E3: [832, 300], E4: [883, 300], E5: [514, 300], E6: [973, 300], E7: [972, 300],
+  E8: [967, 300], E9: [974, 300], E10: [968, 300], E11: [1621, 300], E12: [832, 300], E13: [1000, 300],
+  E14: [790, 300], E15: [1555, 300], E16: [2693, 300], E17: [886, 300], E18: [952, 300], E19: [1000, 300],
+  E20: [999, 300], E21: [963, 300], E22: [958, 300], E23: [956, 300], E24: [985, 300], F1: [1000, 300],
+  F2: [972, 300], F3: [855, 300], F4: [1000, 300], F5: [770, 300], F6: [982, 300], F7: [943, 300],
+  F8: [865, 300], F9: [563, 300], F10: [941, 300], F11: [994, 300], F12: [975, 300], F13: [984, 300],
+  F14: [1551, 300], F15: [4510, 300], F16: [924, 300], F17: [713, 300], F18: [988, 300], F19: [461, 300],
+  F20: [945, 300], F21: [1137, 300], F22: [888, 300], F23: [920, 300], F24: [612, 300], F25: [944, 300],
+  G1: [1000, 300], G2: [1641, 300], G3: [936, 300], G4: [957, 300], G5: [1857, 300], G6: [864, 300],
+  G7: [985, 300], G8: [2136, 300], G9: [965, 300], G10: [870, 300], G11: [745, 300], G12: [999, 300],
+  G13: [997, 300], G14: [517, 300], G15: [992, 300], G16: [904, 300], G17: [949, 300], G18: [998, 300],
+  G19: [998, 300], G20: [849, 300], G21: [877, 300], H1: [771, 300], H2: [340, 1000], H3: [199, 300],
+  H4: [320, 300], H5: [-106, 300], H6: [924, 300], H7: [3923, 1000], H8: [999, 300], H9: [851, 300],
+  H10: [814, 300], H11: [971, 300], H12: [610, 300], H13: [998, 300], H14: [1000, 300], H15: [1000, 300],
+  H16: [753, 300], H17: [984, 300], H18: [589, 300], H19: [1000, 300], H20: [1000, 300], H21: [877, 300],
+  H22: [910, 300], H23: [996, 300], M1: [939, 300], M2: [994, 300], M3: [994, 300], M4: [862, 300],
+  M5: [1000, 300], M6: [996, 300], M7: [974, 300], M8: [975, 300], M9: [913, 300], M10: [984, 300],
+  M11: [1000, 300], M12: [917, 300], M13: [999, 300], M14: [889, 300], M15: [999, 300]
+};
 const routeNames = {
   "/": "首页",
   "/colors": "色库管理",
@@ -71,10 +111,36 @@ function initialColors() {
     return Array.from({ length: count }, (_, index) => {
       const n = index + 1;
       const code = `${series}${n}`;
-      const stock = n % 17 === 0 ? 0 : n % 9 === 0 ? 80 + n * 3 : 260 + ((n * 137 + series.charCodeAt(0) * 11) % 2600);
-      return { code, series, hex: canonicalColorHex[code], stock, threshold: DEFAULT_THRESHOLD, library: "MARD 221" };
+      const [stock, threshold] = initialInventory[code] || [0, DEFAULT_THRESHOLD];
+      return { code, series, hex: canonicalColorHex[code], stock, threshold, library: "MARD 221" };
     });
   });
+}
+
+function applyInitialInventory(colors) {
+  colors.forEach((color) => {
+    const inventory = initialInventory[color.code];
+    if (!inventory) return;
+    const [stock, threshold] = inventory;
+    color.stock = stock;
+    color.threshold = threshold;
+  });
+  return colors;
+}
+
+function needsInventoryMigration(appState) {
+  return appState.inventoryDataVersion !== INVENTORY_DATA_VERSION;
+}
+
+function migrateInventoryState(appState) {
+  if (!needsInventoryMigration(appState)) return appState;
+  appState.colors = applyInitialInventory(normalizeColors(appState.colors));
+  appState.inventoryDataVersion = INVENTORY_DATA_VERSION;
+  appState.settings = {
+    ...appState.settings,
+    defaultThreshold: DEFAULT_THRESHOLD
+  };
+  return appState;
 }
 
 function normalizeColors(colors) {
@@ -95,6 +161,7 @@ function defaultState() {
   const colors = initialColors();
   return {
     settings: { library: "MARD 221", defaultThreshold: DEFAULT_THRESHOLD, allowNegativeStock: false, adminPassword: "admin123" },
+    inventoryDataVersion: INVENTORY_DATA_VERSION,
     colors,
     restocks: [
       { id: crypto.randomUUID(), code: "A3", quantity: 300, date: today(), note: "首批补货示例" },
@@ -114,6 +181,7 @@ function loadState() {
   try {
     const parsed = JSON.parse(stored);
     if (!Array.isArray(parsed.colors) || parsed.colors.length !== 221) return defaultState();
+    const shouldSaveMigration = needsInventoryMigration(parsed);
     parsed.colors = normalizeColors(parsed.colors);
     parsed.settings = {
       library: parsed.settings?.library || "MARD 221",
@@ -121,7 +189,11 @@ function loadState() {
       allowNegativeStock: Boolean(parsed.settings?.allowNegativeStock),
       adminPassword: parsed.settings?.adminPassword || "admin123"
     };
-    return parsed;
+    const next = migrateInventoryState(parsed);
+    if (shouldSaveMigration) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    }
+    return next;
   } catch {
     return defaultState();
   }
@@ -158,6 +230,7 @@ async function loadRemoteState() {
   if (!data?.payload || !Object.keys(data.payload).length) return null;
   const remote = data.payload;
   if (!Array.isArray(remote.colors) || remote.colors.length !== 221) return null;
+  const shouldSaveMigration = needsInventoryMigration(remote);
   remote.colors = normalizeColors(remote.colors);
   remote.settings = {
     library: remote.settings?.library || "MARD 221",
@@ -165,7 +238,11 @@ async function loadRemoteState() {
     allowNegativeStock: Boolean(remote.settings?.allowNegativeStock),
     adminPassword: remote.settings?.adminPassword || "admin123"
   };
-  return remote;
+  const next = migrateInventoryState(remote);
+  if (shouldSaveMigration) {
+    Object.defineProperty(next, "__needsRemoteSave", { value: true, configurable: true });
+  }
+  return next;
 }
 
 async function saveRemoteState() {
@@ -198,6 +275,10 @@ async function hydrateState() {
     if (remote) {
       state = remote;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      if (remote.__needsRemoteSave) {
+        stateLoaded = true;
+        await saveRemoteState();
+      }
     } else if (canUseSupabase()) {
       await saveRemoteState();
     }
