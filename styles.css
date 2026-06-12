@@ -13,6 +13,8 @@
   --danger: #c96f69;
   --warn: #b9853d;
   --shadow: 0 14px 38px rgba(72, 62, 47, 0.08);
+  --topbar-height: 140px;
+  --series-nav-height: 52px;
   color-scheme: light;
   font-family: Inter, "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
 }
@@ -187,14 +189,12 @@ p { color: var(--muted); line-height: 1.65; }
 .tabs, .series-nav { display: flex; gap: 8px; flex-wrap: wrap; }
 .series-nav {
   position: sticky;
-  top: 74px;
-  z-index: 4;
+  top: var(--topbar-height);
+  z-index: 6;
   margin: -6px 0 0;
-  padding: 10px 0;
-  background: rgba(250, 248, 245, 0.96);
-  border-bottom: 1px solid rgba(222, 214, 202, 0.72);
-  box-shadow: 0 10px 18px rgba(92, 78, 58, 0.05);
-  backdrop-filter: blur(14px);
+  padding: 10px 0 14px;
+  background: linear-gradient(180deg, rgba(250, 248, 245, 0.98), rgba(250, 248, 245, 0.96) 72%, rgba(250, 248, 245, 0));
+  backdrop-filter: blur(10px);
 }
 .tabs button, .series-nav button {
   border: 1px solid var(--line);
@@ -212,7 +212,7 @@ th, td { padding: 13px 14px; text-align: left; border-bottom: 1px solid var(--li
 th { color: #6f756f; font-size: 13px; background: rgba(248,246,241,.7); font-weight: 800; }
 tr:last-child td { border-bottom: 0; }
 tbody tr:hover { background: rgba(232, 241, 228, 0.4); }
-.panel[id^="series-"] { scroll-margin-top: 148px; }
+.panel[id^="series-"] { scroll-margin-top: calc(var(--topbar-height) + var(--series-nav-height) + 18px); }
 .panel[id^="series-"] table { table-layout: fixed; }
 .panel[id^="series-"] th,
 .panel[id^="series-"] td {
@@ -528,8 +528,7 @@ tr:hover .hover-action, .cell-actions:hover .hover-action { opacity: 1; transfor
   .topbar { grid-template-columns: auto minmax(0, 1fr); }
   #librarySelect, #quickAddPattern { display: none; }
   .stats, .two-col, .three-col, .form-grid, .series-table-grid { grid-template-columns: 1fr; }
-  .series-nav { top: 64px; }
-  .panel[id^="series-"] { scroll-margin-top: 136px; }
+  .series-nav { top: var(--topbar-height); }
   .pattern-item-row,
   .status-bar { grid-template-columns: 1fr; }
   .view { padding: 18px; }

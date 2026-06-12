@@ -9,6 +9,7 @@ let supabaseClient = null;
 let stateLoaded = false;
 let saveTimer = null;
 let startupIssue = "";
+let stickyOffsetObserver = null;
 const canonicalColorHex = {
   A1: "#FAF4C8", A2: "#FFFFD5", A3: "#FEFF8B", A4: "#FBED56", A5: "#F4D738", A6: "#FEAC4C", A7: "#FE8B4C", A8: "#FFDA45",
   A9: "#FF995B", A10: "#F77C31", A11: "#FFDD99", A12: "#FE9F72", A13: "#FFC365", A14: "#FD543D", A15: "#FFF365", A16: "#FFFF9F",
@@ -511,6 +512,7 @@ function renderColors() {
     </div>
   `;
   setSeriesNavActive("A");
+  refreshStickyOffsets();
 }
 
 function colorGroup(series) {
@@ -551,6 +553,27 @@ function setSeriesNavActive(series) {
   });
 }
 
+function updateStickyOffsets() {
+  const topbarHeight = Math.ceil($(".topbar")?.getBoundingClientRect().height || 0);
+  const seriesNavHeight = Math.ceil($(".series-nav")?.getBoundingClientRect().height || 0);
+  if (!topbarHeight) return;
+  document.documentElement.style.setProperty("--topbar-height", `${topbarHeight}px`);
+  document.documentElement.style.setProperty("--series-nav-height", `${seriesNavHeight}px`);
+}
+
+function refreshStickyOffsets() {
+  updateStickyOffsets();
+  requestAnimationFrame(updateStickyOffsets);
+}
+
+function observeStickyOffsets() {
+  if (stickyOffsetObserver || !window.ResizeObserver) return;
+  const topbar = $(".topbar");
+  if (!topbar) return;
+  stickyOffsetObserver = new ResizeObserver(refreshStickyOffsets);
+  stickyOffsetObserver.observe(topbar);
+}
+
 function renderAlerts(filter = "all") {
   const grouped = Object.keys(seriesCounts);
   $("#view").innerHTML = `
@@ -561,6 +584,7 @@ function renderAlerts(filter = "all") {
     </div>
   `;
   setSeriesNavActive("A");
+  refreshStickyOffsets();
 }
 
 function alertGroup(series) {
@@ -1017,6 +1041,7 @@ document.addEventListener("click", (event) => {
   }
   if (target.dataset.closeModal !== undefined) $("#modal").close();
   if (target.dataset.seriesJump) {
+    updateStickyOffsets();
     setSeriesNavActive(target.dataset.seriesJump);
     const section = document.getElementById(`series-${target.dataset.seriesJump}`);
     if (section) {
@@ -1225,6 +1250,8 @@ $("#globalSearch").addEventListener("input", (event) => {
 window.addEventListener("hashchange", render);
 window.addEventListener("resize", () => {
   if (window.innerWidth > 980) closeSidebar();
+  refreshStickyOffsets();
 });
+observeStickyOffsets();
 render();
 hydrateState();
