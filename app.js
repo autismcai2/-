@@ -643,7 +643,7 @@ function renderRestockRows() {
   return rows.map((item) => {
     const currentBatch = item.batchId || item.batchLabel || item.id;
     const divider = item.batchLabel && currentBatch !== lastBatch
-      ? `<tr class="batch-divider"><td colspan="5">${item.batchLabel}</td></tr>`
+      ? `<tr class="batch-divider"><td colspan="5"><div class="batch-divider-row"><span>${item.batchLabel}</span><button class="danger-button compact-action" data-delete-restock-batch="${currentBatch}">删除本批次</button></div></td></tr>`
       : "";
     lastBatch = item.batchLabel ? currentBatch : lastBatch;
     return `${divider}<tr><td><strong>${item.code}</strong></td><td>${fmt(item.quantity)}</td><td>${item.date}</td><td>${item.note || ""}</td><td><button class="ghost compact-action" data-edit-restock="${item.id}">编辑</button> <button class="danger-button compact-action" data-delete-restock="${item.id}">删除</button></td></tr>`;
@@ -756,6 +756,19 @@ function applyRestock(item, oldQuantity = 0) {
   const color = colorByCode(item.code);
   if (!color) throw new Error(`找不到色号 ${item.code}`);
   color.stock += Number(item.quantity) - Number(oldQuantity);
+}
+
+function batchKeyOfRestock(item) {
+  return item.batchId || item.batchLabel || item.id;
+}
+
+function deleteRestockItems(items) {
+  items.forEach((item) => {
+    const color = colorByCode(item.code);
+    if (color) color.stock -= Number(item.quantity);
+  });
+  const ids = new Set(items.map((item) => item.id));
+  state.restocks = state.restocks.filter((item) => !ids.has(item.id));
 }
 
 function parseBatch(text) {
@@ -1054,10 +1067,18 @@ document.addEventListener("click", (event) => {
   if (target.dataset.deleteRestock) {
     const item = state.restocks.find((r) => r.id === target.dataset.deleteRestock);
     openModal("删除补货记录", `<p>删除后会从 ${item.code} 库存中减回 ${fmt(item.quantity)} 颗。</p>`, () => {
-      const color = colorByCode(item.code);
-      if (color) color.stock -= item.quantity;
-      state.restocks = state.restocks.filter((r) => r.id !== item.id);
+      deleteRestockItems([item]);
       save(); render(); toast("补货记录已删除");
+    });
+  }
+  if (target.dataset.deleteRestockBatch) {
+    const batchId = target.dataset.deleteRestockBatch;
+    const items = state.restocks.filter((item) => item.batchLabel && batchKeyOfRestock(item) === batchId);
+    const label = items[0]?.batchLabel || "这个批次";
+    const total = items.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+    openModal("删除批量补货", `<p>确认删除 <strong>${label}</strong> 的 ${items.length} 条补货记录吗？删除后会从库存中减回共 ${fmt(total)} 颗。</p>`, () => {
+      deleteRestockItems(items);
+      save(); render(); toast("批量补货已删除");
     });
   }
   if (target.dataset.adminAction) handleAdminAction(target.dataset.adminAction);

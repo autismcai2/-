@@ -287,6 +287,16 @@ tbody tr:hover { background: rgba(232, 241, 228, 0.4); }
   font-size: 11px;
   font-weight: 700;
 }
+.batch-divider-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.batch-divider .compact-action {
+  min-height: 28px;
+  white-space: nowrap;
+}
 .dialog-topbar {
   display: flex;
   align-items: center;
