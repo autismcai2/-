@@ -316,6 +316,13 @@ function colorByCode(code) {
   return state.colors.find((color) => color.code.toUpperCase() === String(code).trim().toUpperCase());
 }
 
+function compareColorCodes(a, b) {
+  const [, aSeries = "", aNumber = "0"] = String(a).trim().toUpperCase().match(/^([A-Z]+)(\d+)$/) || [];
+  const [, bSeries = "", bNumber = "0"] = String(b).trim().toUpperCase().match(/^([A-Z]+)(\d+)$/) || [];
+  if (aSeries !== bSeries) return aSeries.localeCompare(bSeries, "en");
+  return Number(aNumber) - Number(bNumber);
+}
+
 function statusOf(color) {
   if (color.stock <= 0) return { label: "缺货", cls: "empty" };
   if (color.stock <= color.threshold) return { label: "低库存", cls: "low" };
@@ -608,13 +615,15 @@ function alertTable(rows) {
 }
 
 function alertRow(color) {
-  const label = color.alertType === "shortage" ? "缺货" : "低库存";
-  const cls = color.alertType === "shortage" ? "empty" : "low";
+  const meta = {
+    shortage: { label: "缺货", cls: "empty" },
+    low: { label: "低库存", cls: "low" }
+  }[color.alertType] || { label: "低库存", cls: "low" };
   return `<tr>
     <td><span class="swatch" style="background:${color.hex}"></span><strong>${color.code}</strong></td>
     <td>${fmt(color.stock)}</td>
     <td>${fmt(color.threshold)}</td>
-    <td><span class="pill ${cls}">${label}</span></td>
+    <td><span class="pill ${meta.cls}">${meta.label}</span></td>
     <td>${fmt(color.gap)}</td>
     <td>${fmt(color.suggested)}</td>
     <td><button class="soft-button" data-restock-code="${color.code}">加入补货</button></td>
@@ -622,9 +631,10 @@ function alertRow(color) {
 }
 
 function renderRestocks() {
+  const alertPriority = { shortage: 0, low: 1 };
   const alertRows = alerts().slice().sort((a, b) => {
-    if (a.alertType === b.alertType) return a.code.localeCompare(b.code, "en");
-    return a.alertType === "shortage" ? -1 : 1;
+    if (a.alertType === b.alertType) return compareColorCodes(a.code, b.code);
+    return (alertPriority[a.alertType] ?? 99) - (alertPriority[b.alertType] ?? 99);
   });
   $("#view").innerHTML = `
     ${pageHead("补货记录", "", `<button class="primary" data-new-restock>新增补货</button>`)}
@@ -653,7 +663,13 @@ function renderRestocks() {
           <h2>待补货简表</h2>
           <div class="table-wrap compact-table" style="margin-top:14px"><table>
             <thead><tr><th>色号</th><th>状态</th><th>缺口</th><th>建议补货</th></tr></thead>
-            <tbody>${alertRows.map((item) => `<tr><td><span class="swatch" style="background:${item.hex}"></span><strong>${item.code}</strong></td><td><span class="pill ${item.alertType === "shortage" ? "empty" : "low"}">${item.alertType === "shortage" ? "缺货" : "低库存"}</span></td><td>${fmt(item.gap)}</td><td>${fmt(item.suggested)}</td></tr>`).join("") || `<tr><td colspan="4" class="muted">当前没有需要补货的色号</td></tr>`}</tbody>
+            <tbody>${alertRows.map((item) => {
+              const meta = {
+                shortage: { label: "缺货", cls: "empty" },
+                low: { label: "低库存", cls: "low" }
+              }[item.alertType] || { label: "低库存", cls: "low" };
+              return `<tr><td><span class="swatch" style="background:${item.hex}"></span><strong>${item.code}</strong></td><td><span class="pill ${meta.cls}">${meta.label}</span></td><td>${fmt(item.gap)}</td><td>${fmt(item.suggested)}</td></tr>`;
+            }).join("") || `<tr><td colspan="4" class="muted">当前没有需要补货的色号</td></tr>`}</tbody>
           </table></div>
         </section>
       </div>
@@ -917,7 +933,10 @@ function patternEditorBody(pattern) {
   return `<div class="pattern-detail-shell">
     <div class="dialog-topbar">
       <h2 class="dialog-title">${pattern.name}</h2>
-      <button class="close-chip" type="button" data-close-modal aria-label="关闭">×</button>
+      <div style="display:flex; gap:8px; align-items:center">
+        <button class="danger-button compact-action" type="button" data-delete-pattern="${pattern.id}">删除图纸</button>
+        <button class="close-chip" type="button" data-close-modal aria-label="关闭">×</button>
+      </div>
     </div>
     <div class="grid pattern-detail-grid">
     <div class="pattern-art pattern-art-large pattern-art-detail">${renderPatternCover(pattern.cover, { previewable: true })}</div>
@@ -959,7 +978,20 @@ function collectPatternItems(form) {
     return { code, quantity };
   });
   if (!items.length) throw new Error("至少保留一行色号消耗");
-  return items;
+  return items.sort((a, b) => compareColorCodes(a.code, b.code));
+}
+
+function deletePattern(pattern) {
+  if (!pattern) return;
+  const body = pattern.stockDeducted
+    ? `<p>确认删除 <strong>${pattern.name}</strong> 吗？</p><p>这张图纸已经扣过库存，删除后只会移除图纸记录，不会把库存自动加回。</p>`
+    : `<p>确认删除 <strong>${pattern.name}</strong> 吗？删除后无法恢复。</p>`;
+  openModal("删除图纸", body, () => {
+    state.patterns = state.patterns.filter((item) => item.id !== pattern.id);
+    save();
+    render();
+    toast("图纸已删除");
+  });
 }
 
 function handleAdminAction(action) {
@@ -1133,6 +1165,11 @@ document.addEventListener("click", (event) => {
     const pattern = state.patterns.find((p) => p.id === target.dataset.viewPattern);
     $("#modal").innerHTML = `<div class="modal-body modal-body-scroll">${patternEditorBody(pattern)}</div>`;
     $("#modal").showModal();
+  }
+  if (target.dataset.deletePattern) {
+    const pattern = state.patterns.find((p) => p.id === target.dataset.deletePattern);
+    if ($("#modal")?.open) $("#modal").close();
+    deletePattern(pattern);
   }
   if (target.dataset.previewImage) {
     openImagePreview(target.dataset.previewImage);
