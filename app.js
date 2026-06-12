@@ -923,6 +923,10 @@ function setPatternStatus(pattern, nextStatus) {
     deductPattern(pattern);
     return;
   }
+  if (pattern.stockDeducted && pattern.status === "done-deducted") {
+    applyPatternStockChange(pattern.items, []);
+    pattern.stockDeducted = false;
+  }
   pattern.status = nextStatus;
   save();
   render();
@@ -994,6 +998,38 @@ function deletePattern(pattern) {
   });
 }
 
+function summarizePatternItems(items) {
+  return items.reduce((map, item) => {
+    map.set(item.code, (map.get(item.code) || 0) + Number(item.quantity || 0));
+    return map;
+  }, new Map());
+}
+
+function assertPatternStockChangeAllowed(previousItems, nextItems) {
+  if (state.settings.allowNegativeStock) return;
+  const previousTotals = summarizePatternItems(previousItems);
+  const nextTotals = summarizePatternItems(nextItems);
+  const codes = new Set([...previousTotals.keys(), ...nextTotals.keys()]);
+  for (const code of codes) {
+    const color = colorByCode(code);
+    if (!color) throw new Error(`找不到色号 ${code}`);
+    const available = color.stock + (previousTotals.get(code) || 0);
+    const nextQuantity = nextTotals.get(code) || 0;
+    if (available - nextQuantity < 0) throw new Error(`${code} 库存不足，未扣库存`);
+  }
+}
+
+function applyPatternStockChange(previousItems, nextItems) {
+  const previousTotals = summarizePatternItems(previousItems);
+  const nextTotals = summarizePatternItems(nextItems);
+  const codes = new Set([...previousTotals.keys(), ...nextTotals.keys()]);
+  for (const code of codes) {
+    const color = colorByCode(code);
+    if (!color) throw new Error(`找不到色号 ${code}`);
+    color.stock += (previousTotals.get(code) || 0) - (nextTotals.get(code) || 0);
+  }
+}
+
 function handleAdminAction(action) {
   const actions = {
     "clear-stock": {
@@ -1035,19 +1071,17 @@ function handleAdminAction(action) {
 
 function deductPattern(pattern) {
   if (pattern.stockDeducted) return toast("这张图纸已经扣过库存了");
-  for (const item of pattern.items) {
-    const color = colorByCode(item.code);
-    if (!color) return toast(`找不到色号 ${item.code}`);
-    if (!state.settings.allowNegativeStock && color.stock - item.quantity < 0) return toast(`${item.code} 库存不足，未扣库存`);
+  try {
+    assertPatternStockChangeAllowed([], pattern.items);
+    applyPatternStockChange([], pattern.items);
+    pattern.status = "done-deducted";
+    pattern.stockDeducted = true;
+    save();
+    render();
+    toast("已完成并扣减库存");
+  } catch (err) {
+    toast(err.message);
   }
-  pattern.items.forEach((item) => {
-    colorByCode(item.code).stock -= item.quantity;
-  });
-  pattern.status = "done-deducted";
-  pattern.stockDeducted = true;
-  save();
-  render();
-  toast("已完成并扣减库存");
 }
 
 document.addEventListener("click", (event) => {
@@ -1245,9 +1279,18 @@ document.addEventListener("submit", async (event) => {
     const pattern = state.patterns.find((item) => item.id === form.dataset.patternId);
     try {
       const nextStatus = form.querySelector('select[name="status"]').value;
+      const previousItems = pattern.items.map((item) => ({ ...item }));
+      const wasDeducted = pattern.stockDeducted && pattern.status === "done-deducted";
+      const nextItems = collectPatternItems(form);
+      if (wasDeducted) {
+        if (nextStatus === "done-deducted") {
+          assertPatternStockChangeAllowed(previousItems, nextItems);
+        }
+        applyPatternStockChange(previousItems, nextStatus === "done-deducted" ? nextItems : []);
+      }
       pattern.name = form.querySelector('input[name="name"]').value.trim();
       pattern.note = form.querySelector('input[name="note"]').value.trim();
-      pattern.items = collectPatternItems(form);
+      pattern.items = nextItems;
       const coverFile = form.querySelector('input[name="cover"]')?.files?.[0];
       const cover = await uploadPatternCover(coverFile);
       if (cover) pattern.cover = cover;
@@ -1256,6 +1299,7 @@ document.addEventListener("submit", async (event) => {
         deductPattern(pattern);
       } else {
         pattern.status = nextStatus;
+        pattern.stockDeducted = nextStatus === "done-deducted";
         save();
         render();
         toast("图纸已更新");
