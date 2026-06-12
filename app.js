@@ -608,9 +608,9 @@ function renderRestocks() {
       <div class="grid" style="gap:18px">
         <section class="panel">
           <h2>批量导入</h2>
-          <p>必填格式示例：A3 1000; B12 2000; M5 1000。备注为选填。</p>
+          <p>必填格式示例：A3 1000; B12 2000，M5 1000。多个色号可用中英文逗号或分号分隔，备注为选填。</p>
           <form id="batchRestockForm" class="form-grid">
-          <label class="field full">批量内容 <small>必填，色号 数量；多个用分号隔开，数量建议按 1000 填写</small><textarea name="batch" required placeholder="A3 1000; B12 2000; M5 1000"></textarea></label>
+          <label class="field full">批量内容 <small>必填，色号 数量；多个用逗号或分号隔开，数量建议按 1000 填写</small><textarea name="batch" required placeholder="A3 1000; B12 2000，M5 1000"></textarea></label>
           <label class="field">补货日期 <small>必填</small><input name="date" type="date" required value="${today()}"></label>
           <label class="field">备注 <small>选填</small><input name="note" placeholder="例：周末统一补货"></label>
           <div class="field full"><button class="primary" type="submit">导入并增加库存</button></div>
@@ -772,7 +772,7 @@ function deleteRestockItems(items) {
 }
 
 function parseBatch(text) {
-  return text.split(";").map((part) => part.trim()).filter(Boolean).map((part) => {
+  return String(text).split(/[;,，；]/).map((part) => part.trim()).filter(Boolean).map((part) => {
     const [code, quantity] = part.split(/\s+/);
     if (!code || !quantity || !colorByCode(code) || Number(quantity) <= 0) throw new Error(`无法识别：${part}`);
     return { code: code.toUpperCase(), quantity: Number(quantity) };
@@ -817,7 +817,7 @@ function patternForm() {
   return `<div class="form-grid" style="margin-top:14px">
     <label class="field">图纸名称 <small>必填</small><input name="name" required placeholder="例：草莓小兔"></label>
     <label class="field">状态 <small>必填</small><select name="status"><option value="todo">待拼</option><option value="doing">进行中</option><option value="done">仅完成不扣库存</option><option value="done-deducted">已拼并扣库存</option></select></label>
-    <label class="field full">色号消耗 <small>必填，格式示例：A3 120; H19 80; B2 90</small><textarea name="items" required placeholder="A3 120; H19 80; B2 90"></textarea></label>
+    <label class="field full">色号消耗 <small>必填，格式示例：A3 120; H19 80，B2 90；多个用逗号或分号隔开</small><textarea name="items" required placeholder="A3 120; H19 80，B2 90"></textarea></label>
     <label class="field full upload-field">封面图片 <small>选填，不上传也可以</small><span class="upload-button">⌔ 上传封面图片<input name="cover" type="file" accept="image/*"></span></label>
     <label class="field full">备注 <small>选填</small><input name="note" placeholder="例：准备周末完成"></label>
   </div>`;
@@ -1020,7 +1020,9 @@ document.addEventListener("click", (event) => {
     setSeriesNavActive(target.dataset.seriesJump);
     const section = document.getElementById(`series-${target.dataset.seriesJump}`);
     if (section) {
-      const topOffset = window.innerWidth <= 980 ? 150 : 168;
+      const topbarHeight = $(".topbar")?.getBoundingClientRect().height || 0;
+      const seriesNavHeight = $(".series-nav")?.getBoundingClientRect().height || 0;
+      const topOffset = topbarHeight + seriesNavHeight + 18;
       const sectionTop = section.getBoundingClientRect().top + window.scrollY - topOffset;
       window.scrollTo({ top: Math.max(sectionTop, 0), behavior: "smooth" });
     }
