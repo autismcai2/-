@@ -757,7 +757,7 @@ function renderSettings() {
 
 function openModal(title, body, onSubmit) {
   const modal = $("#modal");
-  modal.innerHTML = `<form method="dialog" class="modal-body"><h2>${title}</h2>${body}<div class="modal-actions"><button class="ghost" value="cancel" type="button" data-close-modal>取消</button><button class="primary" value="default" type="submit">确认</button></div></form>`;
+  modal.innerHTML = `<form method="dialog" class="modal-body modal-body-scroll"><div class="dialog-topbar dialog-topbar-compact"><h2 class="dialog-title">${title}</h2><button class="close-chip" type="button" data-close-modal aria-label="关闭">×</button></div>${body}<div class="modal-actions modal-actions-sticky"><button class="ghost" value="cancel" type="button" data-close-modal>取消</button><button class="primary" value="default" type="submit">确认</button></div></form>`;
   const form = $("form", modal);
   form.addEventListener("submit", (event) => {
     event.preventDefault();

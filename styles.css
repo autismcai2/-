@@ -515,6 +515,16 @@ tr:hover .hover-action, .cell-actions:hover .hover-action { opacity: 1; transfor
 .toast.show { opacity: 1; transform: translateY(0); }
 .empty-state { border: 1px dashed #d8ccbd; border-radius: 20px; padding: 28px; text-align: center; background: rgba(255, 253, 248, .62); }
 
+.dialog-topbar-compact {
+  padding: 0 0 8px;
+}
+.modal-actions-sticky {
+  position: sticky;
+  bottom: 0;
+  padding-top: 12px;
+  padding-bottom: calc(4px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(to bottom, rgba(252, 249, 243, 0), var(--paper) 22px);
+}
 @media (max-width: 980px) {
   .app { grid-template-columns: 1fr; }
   .sidebar { position: fixed; z-index: 10; transform: translateX(-100%); transition: .2s ease; width: 260px; }
@@ -533,4 +543,25 @@ tr:hover .hover-action, .cell-actions:hover .hover-action { opacity: 1; transfor
   .status-bar { grid-template-columns: 1fr; }
   .view { padding: 18px; }
   .page-head { display: grid; }
+  .modal {
+    width: min(100vw - 16px, 620px);
+    max-height: calc(100vh - 16px);
+    max-height: calc(100dvh - 16px);
+    margin: 8px;
+  }
+  .modal-body,
+  .modal-body-scroll {
+    max-height: calc(100vh - 32px);
+    max-height: calc(100dvh - 32px);
+    padding: 18px;
+  }
+  .modal-actions {
+    position: sticky;
+    bottom: 0;
+    flex-wrap: wrap;
+    justify-content: stretch;
+  }
+  .modal-actions button {
+    flex: 1 1 140px;
+  }
 }
