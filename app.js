@@ -693,7 +693,7 @@ function renderRestockRows() {
 function renderPatterns(filter = "unfinished") {
   const patterns = state.patterns.filter((pattern) => filter === "completed" ? ["done", "done-deducted"].includes(pattern.status) : ["todo", "doing"].includes(pattern.status));
   $("#view").innerHTML = `
-    ${pageHead("图纸中心", "", `<button class="primary" data-new-pattern>新增图纸</button>`)}
+    ${pageHead("图纸中心", "缺色按单张图纸计算，未预留其他未完成图纸用量。", `<button class="primary" data-new-pattern>新增图纸</button>`)}
     <div class="tabs" data-pattern-tabs>
       ${["unfinished:未完成", "completed:已完成"].map((item) => {
         const [key, label] = item.split(":");
@@ -706,14 +706,58 @@ function renderPatterns(filter = "unfinished") {
   `;
 }
 
+function patternInventory(pattern) {
+  const totals = new Map();
+  pattern.items.forEach((item) => {
+    const code = String(item.code || "").trim().toUpperCase();
+    totals.set(code, (totals.get(code) || 0) + Number(item.quantity || 0));
+  });
+  return Array.from(totals, ([code, quantity]) => {
+    const color = colorByCode(code);
+    const stock = Number(color?.stock || 0);
+    return { code, quantity, stock, hex: color?.hex || "#eee", gap: Math.max(quantity - stock, 0) };
+  }).sort((a, b) => Number(b.gap > 0) - Number(a.gap > 0) || compareColorCodes(a.code, b.code));
+}
+
+function patternInventoryBody(pattern) {
+  const rows = patternInventory(pattern);
+  const missing = rows.filter((row) => row.gap > 0);
+  const gap = missing.reduce((sum, row) => sum + row.gap, 0);
+  const [label, cls] = patternStatusMeta(pattern.status, pattern.stockDeducted);
+  return `<div class="pattern-detail-shell">
+    <div class="dialog-topbar"><h2 class="dialog-title">${pattern.name}</h2><button class="close-chip" type="button" data-close-modal aria-label="关闭">×</button></div>
+    <div class="pattern-inventory-layout">
+      <aside><div class="pattern-art pattern-inventory-cover">${renderPatternCover(pattern.cover)}</div><span class="pill ${cls}">${label}</span><p class="pattern-inventory-note">${pattern.stockDeducted ? "本图纸已扣减库存，下表仅对照当前剩余库存，不代表需要再次补货。" : "按单张图纸计算，未预留其他图纸用量。"}</p></aside>
+      <section class="pattern-inventory-content"><h3>用豆与库存对照</h3>
+        <div class="pattern-inventory-stats"><div><span>图纸色号</span><strong>${rows.length}<small> 色</small></strong></div><div class="${missing.length ? "shortage-stat" : ""}"><span>缺色色号</span><strong>${missing.length}<small> 色</small></strong></div><div class="${gap ? "shortage-stat" : ""}"><span>缺口合计</span><strong>${fmt(gap)}<small> 颗</small></strong></div></div>
+        <p class="pattern-inventory-note">缺口 = 图纸需求 − 当前库存，不足部分才显示缺口。</p>
+        <div class="pattern-inventory-tabs" role="group" aria-label="色号筛选"><button type="button" class="active" aria-pressed="true" data-pattern-inventory-filter="all">全部色号 · ${rows.length}</button><button type="button" aria-pressed="false" data-pattern-inventory-filter="shortage">只看缺色 · ${missing.length}</button></div>
+        <div class="pattern-inventory-table-wrap"><table class="pattern-inventory-table"><thead><tr><th>色号</th><th class="right">图纸需求 / 颗</th><th class="right">当前库存 / 颗</th><th class="right">缺口</th><th>状态</th></tr></thead><tbody>${rows.map((row) => `<tr data-pattern-inventory-row data-shortage="${row.gap > 0}" class="${row.gap ? "pattern-missing-row" : ""}"><td><span class="swatch" style="background:${row.hex}"></span><strong>${row.code}</strong></td><td class="right">${fmt(row.quantity)}</td><td class="right">${fmt(row.stock)}</td><td class="right ${row.gap ? "pattern-gap" : "muted"}">${row.gap ? `缺 ${fmt(row.gap)} 颗` : "—"}</td><td><span class="pill ${row.gap ? "low" : "ok"}">${row.gap ? "不足" : "充足"}</span></td></tr>`).join("")}</tbody></table><p class="pattern-no-shortage" hidden>这张图纸当前没有缺色色号。</p></div>
+        <div class="pattern-inventory-footer"><span class="pattern-inventory-note">缺货行优先显示</span><button class="soft-button" type="button" data-edit-pattern="${pattern.id}">编辑图纸与用豆数量</button></div>
+      </section>
+    </div>
+  </div>`;
+}
+
+function showPatternDetails(pattern, editing = false) {
+  if (!pattern) return;
+  const modal = $("#modal");
+  modal.classList.toggle("pattern-inventory-modal", !editing);
+  modal.innerHTML = `<div class="modal-body modal-body-scroll">${editing ? patternEditorBody(pattern) : patternInventoryBody(pattern)}</div>`;
+  if (!modal.open) modal.showModal();
+}
+
 function patternCard(pattern) {
   const [label, cls] = patternStatusMeta(pattern.status, pattern.stockDeducted);
-  const shortage = pattern.items.filter((item) => (colorByCode(item.code)?.stock || 0) < item.quantity).length;
+  const inventory = patternInventory(pattern);
+  const missing = inventory.filter((row) => row.gap > 0);
+  const shortage = missing.length;
   return `<article class="pattern-card">
     <div class="pattern-art">${renderPatternCover(pattern.cover)}</div>
     <h3>${pattern.name}</h3>
-    <p>${pattern.items.reduce((sum, item) => sum + item.quantity, 0)} 颗 · ${pattern.items.length} 个色号</p>
+    <p>${fmt(inventory.reduce((sum, item) => sum + item.quantity, 0))} 颗 · ${inventory.length} 个色号</p>
     <div class="toolbar"><span class="pill ${cls}">${label}</span>${shortage ? `<span class="pill low">缺 ${shortage} 色</span>` : `<span class="pill ok">库存足够</span>`}</div>
+    ${shortage ? `<div class="pattern-shortage-list">${missing.map((row) => `<div class="pattern-shortage-item"><strong><span class="swatch" style="background:${row.hex}"></span>${row.code}</strong><span>缺 ${fmt(row.gap)} 颗</span></div>`).join("")}</div>` : `<p class="pattern-stock-enough">现有库存可完成此图纸</p>`}
     <div class="status-bar">
       ${[
         ["todo", "待拼"],
@@ -722,7 +766,7 @@ function patternCard(pattern) {
         ["done-deducted", "完成并扣库存"]
       ].map(([value, text]) => `<button class="${pattern.status === value ? "active" : ""}" type="button" data-set-pattern-status="${pattern.id}|${value}">${text}</button>`).join("")}
     </div>
-    <div class="toolbar"><button class="ghost" data-view-pattern="${pattern.id}">详情</button></div>
+    <div class="toolbar"><button class="ghost" data-view-pattern="${pattern.id}">查看用豆详情 →</button></div>
   </article>`;
 }
 
@@ -1197,8 +1241,20 @@ document.addEventListener("click", (event) => {
   }
   if (target.dataset.viewPattern) {
     const pattern = state.patterns.find((p) => p.id === target.dataset.viewPattern);
-    $("#modal").innerHTML = `<div class="modal-body modal-body-scroll">${patternEditorBody(pattern)}</div>`;
-    $("#modal").showModal();
+    showPatternDetails(pattern);
+  }
+  if (target.dataset.editPattern) {
+    showPatternDetails(state.patterns.find((pattern) => pattern.id === target.dataset.editPattern), true);
+  }
+  if (target.dataset.patternInventoryFilter) {
+    const shortagesOnly = target.dataset.patternInventoryFilter === "shortage";
+    $$("[data-pattern-inventory-row]", $("#modal")).forEach((row) => { row.hidden = shortagesOnly && row.dataset.shortage !== "true"; });
+    $$("[data-pattern-inventory-filter]", $("#modal")).forEach((button) => {
+      const active = button === target;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+    $(".pattern-no-shortage", $("#modal")).hidden = !shortagesOnly || $$("[data-pattern-inventory-row][data-shortage='true']", $("#modal")).length > 0;
   }
   if (target.dataset.deletePattern) {
     const pattern = state.patterns.find((p) => p.id === target.dataset.deletePattern);
@@ -1309,6 +1365,8 @@ document.addEventListener("submit", async (event) => {
     }
   }
 });
+
+$("#modal").addEventListener("close", () => { $("#modal").classList.remove("pattern-inventory-modal"); });
 
 document.addEventListener("scroll", () => {
   if (!["/colors", "/inventory-alerts"].includes(route())) return;

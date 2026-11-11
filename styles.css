@@ -565,3 +565,44 @@ tr:hover .hover-action, .cell-actions:hover .hover-action { opacity: 1; transfor
     flex: 1 1 140px;
   }
 }
+
+/* Per-pattern shortages and inventory comparison. */
+.pattern-card{display:flex;flex-direction:column;min-width:0}
+.pattern-card .status-bar{margin-top:auto;padding-top:12px}
+.pattern-shortage-list{display:grid;gap:6px;margin:12px 0;background:#fff4ee;border:1px solid #f1ded4;border-radius:12px;padding:10px;max-height:168px;overflow:auto}
+.pattern-shortage-item{display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:13px}
+.pattern-shortage-item strong{display:inline-flex;align-items:center}
+.pattern-shortage-item>span,.pattern-gap{color:#b45f52;font-weight:600;white-space:nowrap}
+.pattern-stock-enough{font-size:12px;color:#64815e;margin:12px 0}
+.pattern-inventory-modal{width:min(1120px,calc(100vw - 40px))}
+.pattern-inventory-modal .modal-body-scroll{max-height:90vh;max-height:90dvh;padding:26px}
+.pattern-inventory-layout{display:grid;grid-template-columns:minmax(200px,28%) minmax(0,1fr);gap:26px;margin-top:20px}
+.pattern-inventory-cover{height:300px;width:100%;aspect-ratio:auto}
+.pattern-inventory-content{min-width:0}
+.pattern-inventory-content h3{margin:0 0 16px}
+.pattern-inventory-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.pattern-inventory-stats>div{background:#f6f4ed;border-radius:12px;padding:15px}
+.pattern-inventory-stats span{display:block;color:var(--muted);font-size:12px;margin-bottom:8px}
+.pattern-inventory-stats strong{font-size:25px}
+.pattern-inventory-stats small{font-size:12px;font-weight:400}
+.pattern-inventory-stats .shortage-stat{background:#fff0e9;color:#b45f52}
+.pattern-inventory-note{color:var(--muted);font-size:12px;line-height:1.7}
+.pattern-inventory-tabs{display:flex;gap:8px;margin:18px 0 12px;flex-wrap:wrap}
+.pattern-inventory-tabs button{border:1px solid var(--line);background:#fffefa;color:#596852;border-radius:16px;padding:8px 12px;font:inherit;font-size:13px}
+.pattern-inventory-tabs button.active{background:#eaf2e6;border-color:#cbdcc8;color:#416e45;font-weight:600}
+.pattern-inventory-table-wrap{overflow-x:auto}
+.pattern-inventory-table{width:100%;min-width:510px}
+.pattern-inventory-table th{font-size:12px;font-weight:500;white-space:nowrap}
+.pattern-inventory-table td{font-size:13px}
+.pattern-inventory-table .pattern-missing-row{background:#fff5ef}
+.pattern-inventory-table tr[hidden],.pattern-no-shortage[hidden]{display:none}
+.pattern-inventory-footer{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:20px;flex-wrap:wrap}
+.pattern-no-shortage{padding:18px;color:#64815e;text-align:center}
+@media(max-width:760px){
+ .pattern-inventory-modal{width:calc(100vw - 16px)}
+ .pattern-inventory-modal .modal-body-scroll{padding:18px;max-height:calc(100dvh - 32px)}
+ .pattern-inventory-layout{grid-template-columns:1fr;gap:18px}
+ .pattern-inventory-cover{height:190px}
+ .pattern-inventory-stats>div{padding:12px 8px}
+ .pattern-inventory-stats strong{font-size:22px}
+}
