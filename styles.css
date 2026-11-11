@@ -606,3 +606,7 @@ tr:hover .hover-action, .cell-actions:hover .hover-action { opacity: 1; transfor
  .pattern-inventory-stats>div{padding:12px 8px}
  .pattern-inventory-stats strong{font-size:22px}
 }
+
+/* Keep intrinsic image dimensions from expanding grid tracks beyond the cover. */
+.pattern-art{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr)}
+.pattern-image{min-width:0;min-height:0;max-width:100%;max-height:100%}

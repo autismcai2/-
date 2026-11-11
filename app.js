@@ -727,7 +727,7 @@ function patternInventoryBody(pattern) {
   return `<div class="pattern-detail-shell">
     <div class="dialog-topbar"><h2 class="dialog-title">${pattern.name}</h2><button class="close-chip" type="button" data-close-modal aria-label="关闭">×</button></div>
     <div class="pattern-inventory-layout">
-      <aside><div class="pattern-art pattern-inventory-cover">${renderPatternCover(pattern.cover)}</div><span class="pill ${cls}">${label}</span><p class="pattern-inventory-note">${pattern.stockDeducted ? "本图纸已扣减库存，下表仅对照当前剩余库存，不代表需要再次补货。" : "按单张图纸计算，未预留其他图纸用量。"}</p></aside>
+      <aside><div class="pattern-art pattern-inventory-cover">${renderPatternCover(pattern.cover, { previewable: true })}</div><span class="pill ${cls}">${label}</span><p class="pattern-inventory-note">${pattern.stockDeducted ? "本图纸已扣减库存，下表仅对照当前剩余库存，不代表需要再次补货。" : "按单张图纸计算，未预留其他图纸用量。"}</p></aside>
       <section class="pattern-inventory-content"><h3>用豆与库存对照</h3>
         <div class="pattern-inventory-stats"><div><span>图纸色号</span><strong>${rows.length}<small> 色</small></strong></div><div class="${missing.length ? "shortage-stat" : ""}"><span>缺色色号</span><strong>${missing.length}<small> 色</small></strong></div><div class="${gap ? "shortage-stat" : ""}"><span>缺口合计</span><strong>${fmt(gap)}<small> 颗</small></strong></div></div>
         <p class="pattern-inventory-note">缺口 = 图纸需求 − 当前库存，不足部分才显示缺口。</p>
@@ -1132,7 +1132,7 @@ document.addEventListener("click", (event) => {
   if (window.innerWidth <= 980 && !event.target.closest(".sidebar") && !event.target.closest("#menuToggle")) {
     closeSidebar();
   }
-  const target = event.target.closest("button, a");
+  const target = event.target.closest("button, a, [data-preview-image]");
   if (!target) return;
   if (target.id === "menuToggle") {
     toggleSidebar();
