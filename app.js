@@ -727,7 +727,7 @@ function patternInventoryBody(pattern) {
   return `<div class="pattern-detail-shell">
     <div class="dialog-topbar"><h2 class="dialog-title">${pattern.name}</h2><button class="close-chip" type="button" data-close-modal aria-label="关闭">×</button></div>
     <div class="pattern-inventory-layout">
-      <aside><div class="pattern-art pattern-inventory-cover">${renderPatternCover(pattern.cover, { previewable: true })}</div><span class="pill ${cls}">${label}</span><p class="pattern-inventory-note">${pattern.stockDeducted ? "本图纸已扣减库存，下表仅对照当前剩余库存，不代表需要再次补货。" : "按单张图纸计算，未预留其他图纸用量。"}</p></aside>
+      <aside><div class="pattern-art pattern-inventory-cover">${renderPatternCover(pattern.cover, { previewable: true })}</div>${pattern.cover ? `<button class="soft-button pattern-view-image" type="button" data-preview-image="${pattern.cover}">查看原图 / 放大</button>` : ""}<span class="pill ${cls}">${label}</span><p class="pattern-inventory-note">${pattern.stockDeducted ? "本图纸已扣减库存，下表仅对照当前剩余库存，不代表需要再次补货。" : "按单张图纸计算，未预留其他图纸用量。"}</p></aside>
       <section class="pattern-inventory-content"><h3>用豆与库存对照</h3>
         <div class="pattern-inventory-stats"><div><span>图纸色号</span><strong>${rows.length}<small> 色</small></strong></div><div class="${missing.length ? "shortage-stat" : ""}"><span>缺色色号</span><strong>${missing.length}<small> 色</small></strong></div><div class="${gap ? "shortage-stat" : ""}"><span>缺口合计</span><strong>${fmt(gap)}<small> 颗</small></strong></div></div>
         <p class="pattern-inventory-note">缺口 = 图纸需求 − 当前库存，不足部分才显示缺口。</p>
@@ -945,20 +945,39 @@ function renderPatternCover(cover, options = {}) {
 }
 
 function openImagePreview(src) {
-  const modal = $("#modal");
-  if (!modal || !src) return;
-  modal.innerHTML = `
-    <div class="modal-body image-preview-shell">
-      <div class="dialog-topbar">
-        <h2 class="dialog-title">封面大图</h2>
-        <button class="close-chip" type="button" data-close-modal aria-label="关闭">脳</button>
-      </div>
-      <div class="image-preview-frame">
-        <img class="image-preview" src="${src}" alt="图纸封面大图">
-      </div>
-    </div>
-  `;
-  modal.showModal();
+  if (!src) return;
+  let viewer = document.getElementById("patternImageViewer");
+  if (!viewer) {
+    viewer = document.createElement("dialog");
+    viewer.id = "patternImageViewer";
+    viewer.className = "pattern-image-viewer";
+    document.body.appendChild(viewer);
+  }
+  viewer.replaceChildren();
+  const bar = document.createElement("div");
+  bar.className = "pattern-image-viewer-bar";
+  const title = document.createElement("strong");
+  title.textContent = "查看原图";
+  const zoom = document.createElement("button");
+  zoom.type = "button";
+  zoom.textContent = "放大到原始尺寸";
+  const close = document.createElement("button");
+  close.type = "button";
+  close.textContent = "关闭大图";
+  close.onclick = () => viewer.close();
+  bar.append(title, zoom, close);
+  const frame = document.createElement("div");
+  frame.className = "pattern-image-viewer-frame";
+  const image = document.createElement("img");
+  image.src = src;
+  image.alt = "图纸原图";
+  zoom.onclick = () => {
+    const original = frame.classList.toggle("original-size");
+    zoom.textContent = original ? "适应窗口" : "放大到原始尺寸";
+  };
+  frame.appendChild(image);
+  viewer.append(bar, frame);
+  if (!viewer.open) viewer.showModal();
 }
 
 function setPatternStatus(pattern, nextStatus) {
